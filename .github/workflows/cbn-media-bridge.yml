@@ -1,0 +1,71 @@
+name: CBN Media Bridge
+
+on:
+  push:
+    paths:
+      - '.cbn-upload-job.json'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read upload job
+        id: job
+        shell: bash
+        run: |
+          set -euo pipefail
+          DRIVE_ID="$(jq -r '.drive_id' .cbn-upload-job.json)"
+          TARGET="$(jq -r '.target' .cbn-upload-job.json)"
+          if [[ -z "$DRIVE_ID" || "$DRIVE_ID" == "null" || -z "$TARGET" || "$TARGET" == "null" ]]; then
+            echo 'Invalid upload job' >&2
+            exit 1
+          fi
+          if [[ "$TARGET" == /* || "$TARGET" == *'..'* ]]; then
+            echo 'Unsafe target path' >&2
+            exit 1
+          fi
+          echo "drive_id=$DRIVE_ID" >> "$GITHUB_OUTPUT"
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Download image from public Drive file
+        shell: bash
+        env:
+          DRIVE_ID: ${{ steps.job.outputs.drive_id }}
+          TARGET: ${{ steps.job.outputs.target }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$TARGET")"
+          curl --fail --location --retry 3 --retry-all-errors \
+            "https://drive.usercontent.google.com/download?id=${DRIVE_ID}&export=download&confirm=t" \
+            --output "$TARGET"
+          MIME="$(file --brief --mime-type "$TARGET")"
+          echo "Downloaded MIME: $MIME"
+          case "$MIME" in
+            image/png|image/jpeg|image/webp|image/gif) ;;
+            *) echo "Downloaded file is not a supported image" >&2; exit 1 ;;
+          esac
+          test -s "$TARGET"
+
+      - name: Commit image
+        shell: bash
+        env:
+          TARGET: ${{ steps.job.outputs.target }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "$TARGET"
+          if git diff --cached --quiet; then
+            echo 'No image change to commit.'
+            exit 0
+          fi
+          git commit -m "Upload CBN media: $TARGET"
+          git push origin HEAD:main
