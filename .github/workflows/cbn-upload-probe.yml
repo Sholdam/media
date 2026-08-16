@@ -1,0 +1,22 @@
+name: CBN Upload Probe
+on:
+  push:
+    paths:
+      - '.github/workflows/cbn-upload-probe.yml'
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe public staging URLs
+        shell: bash
+        run: |
+          set -u
+          echo '=== CANVA THUMB ==='
+          curl -L -sS -o /tmp/thumb.bin -w 'http=%{http_code} type=%{content_type} size=%{size_download}\n' 'https://media.canva.com/v2/image-resize/format:PNG/height:200/quality:100/uri:ifs%3A%2F%2FM%2F43b04d7c-1375-4fb3-86d8-6eea3b7d1e9b/watermark:F/width:160?csig=AAAAAAAAAAAAAAAAAAAAAC5p1Hmz9U6kwPdzBvwmMKc3qAtaovY_EbOnAjPREUN4&exp=1786908661&osig=AAAAAAAAAAAAAAAAAAAAAFDeaVRD0MSU3FyAgH7P2U2h2Ew3l4EFbphVdC88T59J&signer=media-rpc&x-canva-quality=thumbnail' || true
+          file /tmp/thumb.bin || true
+          echo '=== CANVA MODIFIED FULL ==='
+          curl -L -sS -o /tmp/full.bin -w 'http=%{http_code} type=%{content_type} size=%{size_download}\n' 'https://media.canva.com/v2/image-resize/format:PNG/height:1402/quality:100/uri:ifs%3A%2F%2FM%2F43b04d7c-1375-4fb3-86d8-6eea3b7d1e9b/watermark:F/width:1122?csig=AAAAAAAAAAAAAAAAAAAAAC5p1Hmz9U6kwPdzBvwmMKc3qAtaovY_EbOnAjPREUN4&exp=1786908661&osig=AAAAAAAAAAAAAAAAAAAAAFDeaVRD0MSU3FyAgH7P2U2h2Ew3l4EFbphVdC88T59J&signer=media-rpc&x-canva-quality=thumbnail' || true
+          file /tmp/full.bin || true
+          echo '=== DRIVE DIRECT ==='
+          curl -L -sS -o /tmp/drive.bin -w 'http=%{http_code} type=%{content_type} size=%{size_download} url=%{url_effective}\n' 'https://drive.usercontent.google.com/download?id=1znB9MaIYXFMPJZW_vgrO1apyH85KhWyC&export=download&confirm=t' || true
+          file /tmp/drive.bin || true
