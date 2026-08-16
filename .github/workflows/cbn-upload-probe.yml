@@ -2,7 +2,7 @@ name: CBN Upload Probe
 on:
   push:
     paths:
-      - '.github/workflows/cbn-upload-probe.yml'
+      - '.github/trigger.txt'
 jobs:
   probe:
     runs-on: ubuntu-latest
